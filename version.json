@@ -1,4 +1,4 @@
 {
-  "v": "v365",
-  "label": "v365: IA consciente del modo quincena — reencuadre por defecto en escenarios de período de pago"
+  "v": "v366",
+  "label": "v366: fix ruteo 'cómo voy' — progreso del período, no lo de hoy (quincena-aware)"
 }

@@ -379,6 +379,27 @@
       "note": "frontera valor_hora vs ley"
     },
     {
+      "q": "cómo voy",
+      "mustContain": [
+        "este mes llevás"
+      ],
+      "mustNotContain": [
+        "hoy llevás"
+      ],
+      "note": "Misroute (v366): 'cómo voy' a secas es progreso del período (total_ganado), no lo de HOY. La capa semántica lo mandaba a `hoy` → 'Hoy llevás...' con el total del mes mal etiquetado. Override determinista en aiAnswer (el clasificador crudo aún dice hoy, por eso se valida por contenido, sin expectedIntent)."
+    },
+    {
+      "q": "cómo vamos",
+      "mustContain": [
+        "este mes llevás"
+      ],
+      "mustNotContain": [
+        "hoy llevás",
+        "no estoy seguro"
+      ],
+      "note": "Variante de progreso general (v366): 'cómo vamos' / 'cómo me va' también van a total_ganado, no a fallback."
+    },
+    {
       "q": "cuántas horas son legales por semana",
       "expectedIntent": [
         "laboral",

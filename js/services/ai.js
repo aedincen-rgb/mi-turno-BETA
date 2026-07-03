@@ -4044,6 +4044,23 @@ function _aiAnswerCore(question, state) {
       : null;
   _aiLastNlp = _nlp;
 
+  // "cómo voy" a secas es PROGRESO del período (acumulado), no lo de HOY: la capa
+  // semántica lo mandaba a `hoy` ("Hoy llevás..." con el total del mes mal
+  // etiquetado) o al fallback. Override determinista (no toca el corpus del
+  // clasificador, así no hay ripple — lección v317). Anclado a la frase COMPLETA
+  // para no secuestrar "cómo voy con el ahorro" (advisor) ni "cómo voy hoy/esta
+  // semana" (que conservan su intent).
+  var _esProgresoGeneral =
+    /^[¿¡\s]*c[oó]mo\s+(voy|vamos|me\s+va)(\s+(en\s+general|este\s+mes|ahora|hasta\s+ahora|con\s+la\s+plata))?\s*[?¿!.\s]*$/.test(
+      (q || '').trim()
+    );
+  if (_nlp && _esProgresoGeneral && !/\b(hoy|ayer|semana|semanal)\b/.test(t)) {
+    _nlp.intent = 'total_ganado';
+    _nlp.topic = 'dinero';
+    _nlp.confidence = Math.max(_nlp.confidence || 0, 0.9);
+    if (_nlp.margin == null || _nlp.margin < 1) _nlp.margin = 1;
+  }
+
   // Extraer entidades (dinero, números, tiempo)
   var _entities = typeof aiExtractEntities === 'function' ? aiExtractEntities(question) : null;
 
