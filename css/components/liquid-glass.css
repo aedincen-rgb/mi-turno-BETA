@@ -167,3 +167,121 @@
     animation: none;
   }
 }
+
+/* ════════════════════════════════════════════════════════════════
+   PULIDO v367 · cinco refinamientos aditivos
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── 5) LUZ DE CANTO también en KPIs y tarjetas del Historial ─────
+   El rim especular de v364 solo cubría .card/.dash-hero/.hero; los KPI
+   del Análisis y las tarjetas del Historial quedaban con el brillo plano
+   viejo. Misma técnica de máscara XOR, mismo material en toda la app. */
+.kpi-card,
+.hist-hero-stats,
+.hist-export {
+  position: relative;
+}
+
+.kpi-card::after,
+.hist-hero-stats::after,
+.hist-export::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(255, 255, 255, 0.28) 28%,
+    rgba(255, 255, 255, 0) 50%,
+    rgba(12, 22, 60, 0.05) 76%,
+    rgba(12, 22, 60, 0.11) 100%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 1;
+}
+
+[data-theme='dark'] .kpi-card::after,
+[data-theme='dark'] .hist-hero-stats::after,
+[data-theme='dark'] .hist-export::after {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.42) 0%,
+    rgba(255, 255, 255, 0.12) 30%,
+    rgba(255, 255, 255, 0) 52%,
+    rgba(0, 0, 0, 0.22) 100%
+  );
+}
+
+/* ── 6) NÚMEROS DEL HISTORIAL con degradado de marca ──────────────
+   El trío 5 · 39 · 5 era azul plano; el resto de los números grandes
+   (kpi-val.accent, prog-val) ya usan gradient text. Misma receta,
+   misma variante clara para oscuro. */
+.hist-hero-stat-num {
+  background: linear-gradient(135deg, #4166d4 0%, #5b86e5 50%, #7da8ff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+[data-theme='dark'] .hist-hero-stat-num {
+  background: linear-gradient(135deg, #7da8ff 0%, #9fbeff 50%, #b3cdff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ── 7) AFFORDANCE DE SCROLL en los chips del asistente ───────────
+   La fila se cortaba de golpe en el borde derecho; el desvanecido
+   insinúa "hay más". Solo borde derecho: uno izquierdo apagaría el
+   primer chip en la posición de reposo. */
+.asistente-chips {
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 26px), transparent 100%);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 26px), transparent 100%);
+}
+
+/* ── 8) SELECCIÓN DE TEXTO Y CARET con el azul de marca ───────────
+   La selección era el azul default del sistema; el caret, negro. */
+::selection {
+  background: rgba(91, 134, 229, 0.28);
+}
+
+[data-theme='dark'] ::selection {
+  background: rgba(125, 168, 255, 0.38);
+}
+
+input,
+textarea {
+  caret-color: var(--accent);
+}
+
+/* ── 9) TWINKLE del destello ✦ en la frase del Inicio ─────────────
+   El ícono era estático; un parpadeo lento le da vida a la frase
+   rotativa sin robar atención. */
+@keyframes lgTwinkle {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.mood-spark {
+  animation: lgTwinkle 2.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mood-spark {
+    animation: none;
+  }
+}
