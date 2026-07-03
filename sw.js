@@ -2,7 +2,7 @@
 //  MI TURNO · SERVICE WORKER
 //  Split cache: SHELL_CACHE (archivos de la app, se invalida en cada release)
 //               CDN_CACHE   (librerías externas, sobrevive entre releases)
-const SHELL_CACHE = 'mt-shell-v363'; // bump con scripts/bump.sh
+const SHELL_CACHE = 'mt-shell-v364'; // bump con scripts/bump.sh
 const CDN_CACHE = 'mt-cdn-v2'; // solo bump cuando cambien URLs de CDN
 
 // Supabase SDK y Chart.js son self-hosted → van en appResources (SHELL_CACHE).
@@ -31,7 +31,7 @@ const appResources = [
   './icon-192.png',
   './icon-512.png',
   './img/logo-mark.svg',
-  // CSS (38 archivos)
+  // CSS (39 archivos)
   './css/base/variables.css',
   './css/base/reset.css',
   './css/base/typography.css',
@@ -67,6 +67,7 @@ const appResources = [
   './css/components/skeleton.css',
   './css/components/error-boundary.css',
   './css/components/dark-mode-overrides.css',
+  './css/components/liquid-glass.css',
   './css/modals/overlay.css',
   './css/modals/modal-card.css',
   './css/modals/bottom-sheets.css',

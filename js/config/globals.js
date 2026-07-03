@@ -4,7 +4,7 @@
 // ════════════════════════════════════════════════════════════════
 // Versión visible de la app (mostrada en Ajustes → Acerca de).
 // Mantener sincronizada con CACHE en sw.js y "v" en version.json.
-var MT_APP_VERSION = 'v363'; // hito documentación completa v2.1
+var MT_APP_VERSION = 'v364'; // hito documentación completa v2.1
 
 // Variables globales de Supabase
 var SUPA = null;

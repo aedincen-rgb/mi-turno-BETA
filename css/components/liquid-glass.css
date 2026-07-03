@@ -1,0 +1,169 @@
+/* ════════════════════════════════════════════════════════════════
+   MI TURNO · components/liquid-glass.css   (v364)
+   Realce visual iOS 26 — capa ADITIVA sobre las superficies de glass
+   que ya existen. NO reescribe layout ni componentes (lección v67):
+   solo añade rims especulares, tinte de material, curvatura squircle y
+   un sheen al tocar. Todo va bajo @supports / prefers-reduced-motion,
+   así que en navegadores sin soporte degrada al look actual.
+
+   Excluye a propósito la TAB BAR y el HEADER: son zona estable (v137–
+   v160) y usan transform/will-change; no se tocan.
+   Debe cargarse DESPUÉS de cards.css / dark-mode-overrides.css.
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── 1) LUZ DE CANTO · rim especular diagonal ─────────────────────
+   El glass deja de tener un brillo plano arriba y pasa a leerse como
+   una lente curva: el borde atrapa luz en la esquina superior-izquierda
+   y se oscurece hacia la inferior-derecha. Se dibuja SOLO el borde (1px)
+   con la técnica de máscara XOR — no cubre ni bloquea el contenido. */
+.card,
+.dash-hero,
+.hero {
+  position: relative;
+}
+
+.card::after,
+.dash-hero::after,
+.hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(255, 255, 255, 0.28) 28%,
+    rgba(255, 255, 255, 0) 50%,
+    rgba(12, 22, 60, 0.05) 76%,
+    rgba(12, 22, 60, 0.11) 100%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* En oscuro la luz del canto es más tenue y el canto inferior más marcado
+   (el vidrio flota sobre un fondo oscuro, no claro). */
+@media (prefers-color-scheme: dark) {
+  .card::after,
+  .dash-hero::after,
+  .hero::after {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.42) 0%,
+      rgba(255, 255, 255, 0.12) 30%,
+      rgba(255, 255, 255, 0) 52%,
+      rgba(0, 0, 0, 0.22) 100%
+    );
+  }
+}
+[data-theme='dark'] .card::after,
+[data-theme='dark'] .dash-hero::after,
+[data-theme='dark'] .hero::after {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.42) 0%,
+    rgba(255, 255, 255, 0.12) 30%,
+    rgba(255, 255, 255, 0) 52%,
+    rgba(0, 0, 0, 0.22) 100%
+  );
+}
+
+/* ── 2) TINTE ADAPTATIVO · el material toma alma azul ─────────────
+   Mezcla un 6% (10% en oscuro) del acento dentro del glass VIGENTE
+   (--glass-heavy ya resuelve por tema), así queda tintado sin pelear
+   con el modo oscuro ni bajar el contraste del texto. */
+@supports (background: color-mix(in srgb, white, blue)) {
+  .card,
+  .dash-hero,
+  .hero {
+    background: color-mix(in srgb, var(--accent) 6%, var(--glass-heavy));
+  }
+  @media (prefers-color-scheme: dark) {
+    .card,
+    .dash-hero,
+    .hero {
+      background: color-mix(in srgb, var(--accent) 10%, var(--glass-heavy));
+    }
+  }
+  [data-theme='dark'] .card,
+  [data-theme='dark'] .dash-hero,
+  [data-theme='dark'] .hero {
+    background: color-mix(in srgb, var(--accent) 10%, var(--glass-heavy));
+  }
+}
+
+/* ── 3) SQUIRCLE · curvatura continua estilo Apple ────────────────
+   Progressive enhancement: donde el navegador soporta corner-shape la
+   esquina pasa de círculo a superelipse (la forma real de iOS). Donde
+   no, se ignora y queda el border-radius redondo de siempre. */
+@supports (corner-shape: superellipse(2)) {
+  .card,
+  .dash-hero,
+  .hero,
+  .start-card,
+  .asistente-chip {
+    corner-shape: superellipse(2.4);
+  }
+}
+
+/* ── 4) GLASS VIVO · sheen especular al tocar ─────────────────────
+   Al presionar el botón de acción o un chip del asistente, un barrido
+   de luz recorre el vidrio: el glass "responde" en vez de sentirse
+   plano. Complementa el scale(:active) que ya existe. */
+.start-card,
+.asistente-chip {
+  position: relative;
+  overflow: hidden;
+}
+
+.start-card::after,
+.asistente-chip::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 45%;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.55) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: translateX(-160%) skewX(-18deg);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.start-card:active::after,
+.asistente-chip:active::after {
+  animation: lgSheen 0.6s var(--ios-ease);
+}
+
+@keyframes lgSheen {
+  0% {
+    transform: translateX(-160%) skewX(-18deg);
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateX(220%) skewX(-18deg);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .start-card:active::after,
+  .asistente-chip:active::after {
+    animation: none;
+  }
+}
