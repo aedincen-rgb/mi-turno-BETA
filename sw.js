@@ -2,7 +2,7 @@
 //  MI TURNO · SERVICE WORKER
 //  Split cache: SHELL_CACHE (archivos de la app, se invalida en cada release)
 //               CDN_CACHE   (librerías externas, sobrevive entre releases)
-const SHELL_CACHE = 'mt-shell-v364'; // bump con scripts/bump.sh
+const SHELL_CACHE = 'mt-shell-v365'; // bump con scripts/bump.sh
 const CDN_CACHE = 'mt-cdn-v2'; // solo bump cuando cambien URLs de CDN
 
 // Supabase SDK y Chart.js son self-hosted → van en appResources (SHELL_CACHE).

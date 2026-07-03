@@ -917,6 +917,14 @@ function _trend(curr, prev) {
 // Solo se invoca cuando la confianza del clasificador es ≥0.5.
 // Si un intent no está mapeado, devuelve null → cae al sistema clásico.
 function _aiDispatchNLP(intent, c, state, q, t) {
+  // Modo quincena por defecto: en los intents de "período de pago en curso",
+  // reencuadrar el contexto a la quincena vigente (v365). Solo si el pref está
+  // activo y la pregunta no fuerza el mes; el resto de intents sigue en el mes.
+  if (_AI_QUINCENA_AUTO_INTENTS[intent]) {
+    var _cQuin = _aiScopeQuincenaAuto(c, state, t);
+    if (_cQuin) c = _cQuin;
+  }
+
   // ── Conversacionales ──
   if (intent === 'saludo') {
     var s = typeof _saludoHora === 'function' ? _saludoHora(c.ahora) : 'Hola';
@@ -953,21 +961,32 @@ function _aiDispatchNLP(intent, c, state, q, t) {
       ];
     } else {
       // Usuario con datos → gancho personalizado + acciones de alto valor.
+      // Si cobra por quincena, el gancho habla de la quincena vigente (v365).
+      var _cH = (_aiQuincenaModoActivo(c) && _aiScopeQuincenaAuto(c, state, t)) || c;
+      var _nH = _cH.turnosMesN || _cH.diasTrab;
       _hook =
-        ' Este mes llevás **' +
-        fCOP(c.totalCOP) +
+        ' ' +
+        _aiPeriodoCap(_cH) +
+        ' llevás **' +
+        fCOP(_cH.totalCOP) +
         '** en ' +
-        (c.turnosMesN || c.diasTrab) +
+        _nH +
         ' turno' +
-        ((c.turnosMesN || c.diasTrab) !== 1 ? 's' : '') +
+        (_nH !== 1 ? 's' : '') +
         '.';
       if (c.necesitaDescanso)
         _hook += ' Ojo, ' + c.rachaActual + ' días seguidos — date un respiro.';
-      _chips = [
-        { label: '¿Cómo voy este mes?', query: 'cómo voy este mes' },
-        { label: '📈 Mi proyección', query: 'proyección al cierre' },
-        { label: '¿Me pagan bien?', query: 'me están pagando bien' }
-      ];
+      _chips = _cH.esQuincena
+        ? [
+            { label: '¿Cómo voy esta quincena?', query: 'cómo voy esta quincena' },
+            { label: '📈 Mi proyección', query: 'proyección al corte' },
+            { label: '¿Me pagan bien?', query: 'me están pagando bien' }
+          ]
+        : [
+            { label: '¿Cómo voy este mes?', query: 'cómo voy este mes' },
+            { label: '📈 Mi proyección', query: 'proyección al cierre' },
+            { label: '¿Me pagan bien?', query: 'me están pagando bien' }
+          ];
     }
     return {
       text: '¡' + s + nombre + '!' + _hook + '\n\nTocá una opción 👇 o escribime con tus palabras.',
@@ -1145,7 +1164,8 @@ function _aiDispatchNLP(intent, c, state, q, t) {
     );
     if (_quiereDesglose) {
       return (
-        'Este mes llevás **' +
+        _aiPeriodoCap(c) +
+        ' llevás **' +
         fCOP(c.totalCOP) +
         '** brutos, en ' +
         c.diasTrab +
@@ -1154,21 +1174,30 @@ function _aiDispatchNLP(intent, c, state, q, t) {
         '\n\n' +
         '📊 Vas al ' +
         c.pctSalario.toFixed(1) +
-        '% de tu salario base.\n' +
-        '🔮 Proyección al cierre: **' +
+        '% de tu ' +
+        (c.esQuincena ? 'quincena' : 'salario base') +
+        '.\n' +
+        '🔮 Proyección al ' +
+        (c.esQuincena ? 'corte' : 'cierre') +
+        ': **' +
         fCOP(c.proy) +
         '**'
       );
     }
     return (
-      'Este mes llevás **' +
+      _aiPeriodoCap(c) +
+      ' llevás **' +
       fCOP(c.totalCOP) +
       '** brutos en ' +
       (c.turnosMesN || c.diasTrab) +
       ' turnos — ' +
       c.pctSalario.toFixed(1) +
-      '% de tu meta.\n' +
-      'Proyección al cierre: **' +
+      '% de tu meta' +
+      (c.esQuincena ? ' quincenal' : '') +
+      '.\n' +
+      'Proyección al ' +
+      (c.esQuincena ? 'corte' : 'cierre') +
+      ': **' +
       fCOP(c.proy) +
       '**'
     );
@@ -1204,11 +1233,15 @@ function _aiDispatchNLP(intent, c, state, q, t) {
   }
   if (intent === 'proyeccion') {
     return (
-      '🔮 Proyección al cierre: **' +
+      '🔮 Proyección al ' +
+      (c.esQuincena ? 'corte de la quincena' : 'cierre del mes') +
+      ': **' +
       fCOP(c.proy) +
       '** — ' +
       c.pctSalario.toFixed(1) +
-      '% de tu meta.\n' +
+      '% de tu meta' +
+      (c.esQuincena ? ' quincenal' : '') +
+      '.\n' +
       '• ' +
       c.diasTrab +
       ' días trabajados, ' +
@@ -2910,6 +2943,84 @@ function _aiQuincenaTotalIntent(q, t, c, state) {
   );
 }
 
+// ════════════════════════════════════════════════════════════════
+//  MODO QUINCENA POR DEFECTO (v365)
+//  Si el usuario COBRA por quincena (pref quincenaMode), su modelo mental
+//  del "período de pago en curso" es la quincena, no el mes. En los intents
+//  donde eso importa —cuánto llevo, proyección, KPIs, ¿me pagan bien?— el
+//  asistente razona sobre la QUINCENA vigente por defecto, sin que tenga que
+//  escribir "quincena". Lo legal/mensual/anual (ley, festivos del mes,
+//  liquidación, comparativa_mes) se queda en el mes: ahí la quincena no aplica.
+// ════════════════════════════════════════════════════════════════
+
+// Intents "período de pago en curso" que siguen el modo quincena. La necesidad
+// se decide en el call site; este set documenta el criterio.
+var _AI_QUINCENA_AUTO_INTENTS = { total_ganado: 1, proyeccion: 1, stats: 1 };
+
+function _aiQuincenaModoActivo(c) {
+  return !!(c && c.prefs && c.prefs.quincenaMode);
+}
+
+// "Este mes" / "esta quincena" según el contexto (reencuadrado o no).
+function _aiPeriodoCap(c) {
+  return c && c.esQuincena ? 'Esta quincena' : 'Este mes';
+}
+
+// Reencuadra el contexto a la quincena vigente cuando el modo está activo y la
+// pregunta no fuerza otro período. Devuelve un `c` nuevo con totales, proyección
+// y meta de la QUINCENA, o null si no aplica. El gate por intent va en el caller.
+function _aiScopeQuincenaAuto(c, state, t) {
+  if (!_aiQuincenaModoActivo(c)) return null;
+  // Si el usuario dice "quincena", lo maneja el path explícito; si dice "mes",
+  // respetamos el override y no reencuadramos.
+  if (/quincena|quincenal/.test(t)) return null;
+  if (/\bmes\b|mensual|del mes|al mes|este mes/.test(t)) return null;
+  if (
+    typeof getQuincenaRange !== 'function' ||
+    typeof doCalc !== 'function' ||
+    typeof filterTurnosRango !== 'function'
+  ) {
+    return null;
+  }
+
+  var turnos = (state && (state.turnosAll || state.turnos)) || [];
+  var ahora = c.ahora || new Date();
+  var prefs = c.prefs || {};
+  var rango = getQuincenaRange(ahora, prefs);
+  var enRango = filterTurnosRango(turnos, rango);
+  var calc = doCalc(enRango, null, ahora, c.vh || 0);
+
+  var msDia = 86400000;
+  var totalDias = Math.max(1, Math.round((rango.fin.getTime() - rango.ini.getTime()) / msDia));
+  var diaEnQ = Math.max(
+    1,
+    Math.min(totalDias, Math.ceil((ahora.getTime() - rango.ini.getTime()) / msDia))
+  );
+  var diasRestantes = Math.max(0, totalDias - diaEnQ);
+
+  var totalCOP = calc.totalCOP || 0;
+  // Proyección al CORTE de la quincena: ritmo por día trabajado × días totales.
+  var proy = diaEnQ > 0 ? Math.round((totalCOP / diaEnQ) * totalDias) : totalCOP;
+  // Meta de la quincena = medio salario (el pago quincenal esperado).
+  var metaQ = (c.salario || 0) / 2;
+  var pctSalario = metaQ > 0 ? (totalCOP / metaQ) * 100 : 0;
+
+  var cQ = {};
+  for (var k in c) {
+    if (Object.prototype.hasOwnProperty.call(c, k)) cQ[k] = c[k];
+  }
+  cQ.totalCOP = totalCOP;
+  cQ.bd = calc.bd;
+  cQ.diasTrab = enRango.length;
+  cQ.turnosMesN = enRango.length;
+  cQ.proy = proy;
+  cQ.pctSalario = pctSalario;
+  cQ.diasRestantes = diasRestantes;
+  cQ.esQuincena = true;
+  cQ.periodoCorto = typeof formatRangoCorto === 'function' ? formatRangoCorto(rango) : '';
+  return cQ;
+}
+
 // Estado del turno en curso ("¿tengo un turno activo?", "¿hay un servicio abierto?").
 // Pregunta de ESTADO, no comando: el trigger exige turno/servicio + activo/abierto,
 // así no secuestra "iniciá/cerrá un turno" (acciones con su propio handler).
@@ -3139,8 +3250,14 @@ function _aiAuditIntent(q, t, c, state) {
   }
 
   if (typeof aiAuditarPago !== 'function') return null;
-  // Escopear a una quincena si la pregunta lo pide; si no, el mes completo.
+  // Escopear a una quincena si la pregunta lo pide; si el usuario cobra por
+  // quincena (modo activo), auditar la quincena vigente por defecto (v365);
+  // si no, el mes completo.
   var scoped = _aiScopeQuincena(c, state, t);
+  if (!scoped) {
+    var _cq = _aiScopeQuincenaAuto(c, state, t);
+    if (_cq) scoped = { c: _cq, label: 'esta quincena' };
+  }
   var cUse = scoped ? scoped.c : c;
   var perLabel = scoped ? scoped.label : 'este mes';
   var res = aiAuditarPago(cUse, monto && monto >= 10000 ? monto : 0, perLabel);

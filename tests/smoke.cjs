@@ -504,6 +504,44 @@ truthy(qQuin2 && qQuin2.label.indexOf('segunda quincena de ' + _nombreMes) >= 0,
 truthy(qRango && qRango.label.indexOf(' al ') >= 0,
        'el rango no se degrada a fecha puntual "15 de ' + _nombreMes + '"');
 
+group('Modo quincena por defecto (v365): reencuadre solo en escenarios necesarios');
+(function () {
+  // Contexto de alguien que cobra por quincena, con turnos en AMBAS quincenas del
+  // mes actual (días 2 y 8 en Q1; 18 y 22 en Q2). La quincena vigente contiene 2
+  // de los 4 turnos, así que su total DEBE ser menor al del mes completo.
+  var _h = new Date();
+  function mkQ(day) {
+    var ini = new Date(_h.getFullYear(), _h.getMonth(), day, 8, 0, 0);
+    return { id: 'q' + day, inicio: ini.toISOString(), fin: new Date(ini.getTime() + 8 * 3600000).toISOString() };
+  }
+  var turnosQ = [mkQ(2), mkQ(8), mkQ(18), mkQ(22)];
+  var stateQ = { turnosAll: turnosQ, turnos: turnosQ, session: { uid: 'q', email: 'i@l' } };
+  var vhQ = Math.round(2000000 / 240);
+  var totalMes = Math.round(w.doCalc(turnosQ, null, _h, vhQ).totalCOP);
+  var cOn = { prefs: { quincenaMode: true, q1Day: 1, q2Day: 16 }, salario: 2000000, vh: vhQ, ahora: _h };
+  var cOff = { prefs: { quincenaMode: false }, salario: 2000000, vh: vhQ, ahora: _h };
+
+  truthy(w._aiQuincenaModoActivo(cOn) === true, 'quincenaMode activo detectado');
+  truthy(w._aiQuincenaModoActivo(cOff) === false, 'quincenaMode inactivo detectado');
+  truthy(w._aiPeriodoCap({ esQuincena: true }) === 'Esta quincena', 'etiqueta "Esta quincena"');
+  truthy(w._aiPeriodoCap({}) === 'Este mes', 'etiqueta "Este mes" por defecto');
+
+  var scOn = w._aiScopeQuincenaAuto(cOn, stateQ, 'cuanto llevo');
+  truthy(scOn && scOn.esQuincena === true, 'reencuadra a quincena con modo ON');
+  truthy(scOn && scOn.totalCOP > 0 && scOn.totalCOP < totalMes,
+         'total de la quincena es un subconjunto real del mes (0 < Q < mes)');
+  truthy(scOn && typeof scOn.proy === 'number' && typeof scOn.diasRestantes === 'number',
+         'expone proyección y días restantes de la quincena');
+
+  // Gating: overrides y modo OFF NO reencuadran (los escenarios "solo necesarios").
+  truthy(w._aiScopeQuincenaAuto(cOn, stateQ, 'cuanto llevo este mes') === null,
+         'override explícito "mes" respeta el marco mensual');
+  truthy(w._aiScopeQuincenaAuto(cOn, stateQ, 'cuanto gane esta quincena') === null,
+         'texto con "quincena" lo maneja el path explícito, no el default');
+  truthy(w._aiScopeQuincenaAuto(cOff, stateQ, 'cuanto llevo') === null,
+         'modo OFF nunca reencuadra (comportamiento mensual intacto)');
+})();
+
 group('ai-query: comparación de períodos (v287)');
 // Dos meses con datos distintos: mes pasado (2 turnos) vs antepasado (1 turno)
 var _mesAnt = new Date(_hoy.getFullYear(), _hoy.getMonth() - 1, 10);
