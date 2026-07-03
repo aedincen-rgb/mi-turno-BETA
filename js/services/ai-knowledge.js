@@ -220,6 +220,11 @@ function aiKnowledgeSearch(text) {
         'codigo',
         'código',
         'legal',
+        'permit',
+        'horas por semana',
+        'horas semanales',
+        'maximo de horas',
+        'máximo de horas',
         'normativa',
         'legislacion',
         'derechos'

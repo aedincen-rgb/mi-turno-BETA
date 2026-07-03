@@ -210,11 +210,16 @@ try {
 
     // ── F. LEG — exactitud legal VIGENTE (protege Tier 0/1, Ley 2466/2025) ──
     // Atrapa regresiones si alguien revierte un valor date-aware: la app debe
-    // afirmar 80% dominical / noche desde 7pm / UVT 2026, no los viejos.
+    // afirmar el recargo dominical VIGENTE (sube por fases 80→90→100), la
+    // noche desde 7pm y el UVT 2026. El % dominical NO se hardcodea: se deriva
+    // de getRecargoFestivo(hoy) para no romperse en cada fase de la reforma.
+    var domVigente = (typeof getRecargoFestivo === 'function'
+      ? Math.round(getRecargoFestivo(new Date()) * 100)
+      : 80) + '%';
     var legChecks = [
-      { q: 'cuál es la tabla de recargos', must: ['80%'] },
-      { q: 'cuánto pagan un domingo trabajado', must: ['80%'] },
-      { q: 'cuánto vale mi hora dominical diurna', must: ['80%'] },
+      { q: 'cuál es la tabla de recargos', must: [domVigente] },
+      { q: 'cuánto pagan un domingo trabajado', must: [domVigente] },
+      { q: 'cuánto vale mi hora dominical diurna', must: [domVigente] },
       { q: 'tengo que declarar renta este año', must: ['1.400'] }
     ];
     report.legal = [];

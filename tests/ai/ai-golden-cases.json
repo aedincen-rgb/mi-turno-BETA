@@ -382,15 +382,107 @@
       "q": "cuántas horas son legales por semana",
       "expectedIntent": [
         "laboral",
-        "ley",
-        "horas_trabajadas"
+        "ley"
       ],
       "expectedRoute": "knowledge",
-      "mustNotContain": [
-        "llevás $"
+      "mustContain": [
+        "2101"
       ],
-      "knownGap": true,
-      "note": "GAP D1: la señal 'horas' gana a la legal; responde horas del usuario en vez del marco legal."
+      "mustNotContain": [
+        "llevás $",
+        "promedio"
+      ],
+      "note": "GAP D1 resuelto (v347): la señal legal ('legales'+'horas/semana') vence a horas_trabajadas → responde el marco legal (Ley 2101 jornada semanal), no las horas acumuladas del usuario."
+    },
+    {
+      "q": "cuál es el máximo de horas permitidas por semana",
+      "expectedIntent": [
+        "laboral",
+        "ley"
+      ],
+      "expectedRoute": "knowledge",
+      "mustContain": [
+        "2101"
+      ],
+      "mustNotContain": [
+        "llevás $",
+        "valor hora ordinario"
+      ],
+      "note": "GAP D1 (paráfrasis, v347): 'permitidas'/'máximo de horas' también debe caer al marco legal, no al atajo de valor hora ni a horas trabajadas. Blinda el ruteo contra sinónimos."
+    },
+    {
+      "q": "quiero cambiar mi pin",
+      "expectedIntent": [
+        "ayuda_navegacion",
+        "ayuda_app"
+      ],
+      "expectedRoute": "help",
+      "mustContain": [
+        "pin"
+      ],
+      "mustNotContain": [
+        "esa es la actitud",
+        "el progreso"
+      ],
+      "note": "Misroute (v347): 'cambiar mi pin' sin 'cómo' lo agarraba motivacion ('💪 Esa es la actitud'). Debe dar la guía para configurar/cambiar el PIN."
+    },
+    {
+      "q": "cómo pongo mi foto",
+      "expectedIntent": [
+        "ayuda_navegacion",
+        "ayuda_app"
+      ],
+      "expectedRoute": "help",
+      "mustContain": [
+        "foto"
+      ],
+      "mustNotContain": [
+        "estas son mis capacidades",
+        "chao"
+      ],
+      "note": "Misroute (v347): 'pongo mi foto' (verbo distinto a 'poner') caía a despedida/capacidades. Debe dar la guía para cambiar la foto de perfil."
+    },
+    {
+      "q": "me pueden obligar a trabajar domingo",
+      "expectedIntent": [
+        "ley",
+        "laboral"
+      ],
+      "expectedRoute": "knowledge",
+      "mustContain": [
+        "compensatorio"
+      ],
+      "mustNotContain": [
+        "tu hora base es"
+      ],
+      "note": "Misroute (v347): pregunta de DERECHOS, no de tarifa. La señal 'domingo' la mandaba al cálculo de valor hora dominical; debe explicar el derecho (recargo o descanso compensatorio, CST 179-180)."
+    },
+    {
+      "q": "cuánto es el mínimo",
+      "expectedIntent": [
+        "ley",
+        "laboral"
+      ],
+      "expectedRoute": "knowledge",
+      "mustContain": [
+        "1,750,905"
+      ],
+      "mustNotContain": [
+        "no estoy seguro"
+      ],
+      "note": "Misroute (v347): 'cuánto es el mínimo' caía a fallback (intent null). Debe dar el salario mínimo 2026 desde la base de conocimiento."
+    },
+    {
+      "q": "qué pasa si trabajo festivo",
+      "expectedIntent": null,
+      "mustContain": [
+        "recargo"
+      ],
+      "mustNotContain": [
+        "nuevo total",
+        "simulación: +4h"
+      ],
+      "note": "Misroute (v347): hipotético CONCEPTUAL ('qué pasa si', sin número) simulaba un default de 4h. Debe explicar el recargo festivo, no proyectar una cifra prefabricada."
     },
     {
       "q": "qué dice la ley de festivos",

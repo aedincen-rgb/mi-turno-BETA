@@ -186,6 +186,11 @@ var AI_HELP_GUIDES = [
     keywords: [
       'cambiar foto',
       'poner foto',
+      'pongo foto',
+      'pongo mi foto',
+      'poner mi foto',
+      'subir foto',
+      'agregar foto',
       'foto perfil',
       'imagen perfil',
       'avatar',
@@ -241,6 +246,11 @@ var AI_HELP_GUIDES = [
       'configurar pin',
       'poner pin',
       'crear pin',
+      'cambiar pin',
+      'cambiar mi pin',
+      'cambiar el pin',
+      'modificar pin',
+      'actualizar pin',
       'codigo acceso',
       'pin acceso',
       'bloquear app'

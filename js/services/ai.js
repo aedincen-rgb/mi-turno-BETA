@@ -1620,6 +1620,37 @@ function _aiDispatchNLP(intent, c, state, q, t) {
       if (kRespDef) return kRespDef;
     }
 
+    // Pregunta de DERECHOS ("¿me pueden obligar a trabajar el domingo?"): no es
+    // una consulta de tarifa. La ley permite programarte pero obliga a compensar
+    // (recargo o descanso), así que respondemos el derecho, no el valor hora.
+    if (
+      _aiHas(
+        t,
+        'obligar',
+        'obligad',
+        'obligatorio',
+        'me pueden',
+        'pueden obligarme',
+        'negarme',
+        'rehus',
+        'me toca'
+      ) &&
+      _aiHas(t, 'domingo', 'dominical', 'festiv', 'feriado')
+    ) {
+      var _pctDom = Math.round(getRecargoFestivo(c.ahora || new Date()) * 100);
+      return (
+        '⚖️ **¿Te pueden obligar a trabajar el domingo o festivo?**\n\n' +
+        'Tu empleador puede programarte, pero **nunca gratis**: la ley (CST Art. 179-180) obliga a compensarlo.\n\n' +
+        '• Si es **ocasional** (hasta 2 domingos al mes): elegís entre el **recargo del ' +
+        _pctDom +
+        '%** o un **día compensatorio** de descanso.\n' +
+        '• Si es **habitual** (3+ domingos al mes): te corresponde el recargo del ' +
+        _pctDom +
+        '% **y** el descanso compensatorio.\n\n' +
+        'Ningún acuerdo te puede quitar ese derecho. 💪'
+      );
+    }
+
     // Si el usuario pregunta por el valor de una hora específica y tenemos su salario
     if (c.vh > 0) {
       if (_aiHas(t, 'domingo', 'dominical', 'festiv')) {
@@ -1704,7 +1735,10 @@ function _aiDispatchNLP(intent, c, state, q, t) {
         );
       }
 
-      if (_aiHas(t, 'hora', 'vale', 'pagan') && !_aiHas(t, 'ley', 'normativa')) {
+      // "cuánto vale/pagan mi hora" → valor ordinario. Pero NO cuando la
+      // pregunta es por el marco legal ("cuántas horas son legales/permitidas"):
+      // ahí 'hora' no pide la tarifa sino el límite de jornada → cae al KB.
+      if (_aiHas(t, 'hora', 'vale', 'pagan') && !_aiHas(t, 'ley', 'normativa', 'legal', 'permit')) {
         return (
           'Tu **valor hora ordinario** (sin recargos) es de **' +
           fCOP(c.vh) +
@@ -3808,7 +3842,13 @@ function _aiAnswerCore(question, state) {
         /\bganaria\b|\bcuanto saco con\b|\bcuanto seria con\b/.test(t)) &&
       /(domingo|dominical|festiv|noche|nocturn|madrugad|extra|hora|turno|jornada)/.test(t);
     if (_esSimul || _esHipo) {
-      var _simResp = _aiDispatchNLP('simulacion', c, state, q, t);
+      // "¿Qué pasa si trabajo un festivo?" es CONCEPTUAL (quiere la regla), no una
+      // simulación cuantitativa: sin un número, explicá el recargo en vez de
+      // proyectar un default de 4h que se siente prefabricado.
+      var _conceptualHipo =
+        /\bque pasa si\b|\bque pasaria si\b|\bque sucede si\b|\bque me pasa si\b/.test(t) &&
+        _aiNum(t) === null;
+      var _simResp = _aiDispatchNLP(_conceptualHipo ? 'ley' : 'simulacion', c, state, q, t);
       if (_simResp) return _simResp;
     }
   }

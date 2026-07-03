@@ -1246,7 +1246,12 @@ var AI_INTENTS = [
       ['dominical', 2],
       ['cuanto se paga', 3],
       ['que recargo', 3],
-      ['tabla de recargos', 3]
+      ['tabla de recargos', 3],
+      ['salario minimo', 3],
+      ['minimo legal', 3],
+      ['cuanto es el minimo', 3],
+      ['minimo 2026', 3],
+      ['smmlv', 3]
     ]
   },
   {
@@ -1400,6 +1405,18 @@ var AI_INTENTS = [
       ['como modifico', 3],
       ['como funciona offline', 3],
       ['como sincronizo', 3],
+      // Acciones de cuenta sin "cómo" ("quiero cambiar mi pin", "pongo mi foto"):
+      // pesan alto para vencer al match difuso de motivacion/despedida.
+      ['cambiar pin', 3],
+      ['cambiar mi pin', 3],
+      ['cambiar el pin', 3],
+      ['cambio de pin', 3],
+      ['modificar pin', 3],
+      ['pongo foto', 3],
+      ['pongo mi foto', 3],
+      ['poner mi foto', 3],
+      ['subir foto', 3],
+      ['agregar foto', 3],
       ['estoy conectado', 3],
       ['hay conexion', 3],
       ['como se sincroniza', 3],
@@ -1973,7 +1990,16 @@ function aiClassify(text, convState, userContext) {
     // Si el usuario pide explícitamente HORAS o PROMEDIO, ese es el intent real.
     // Se excluyen las consultas de CONOCIMIENTO sobre el valor de una hora
     // (dominical/nocturna/recargo/"cuánto vale") — esas son intent `ley`.
+    // Consulta del MARCO legal de la jornada ("¿cuántas horas son legales por
+    // semana?", "el máximo permitido"). La palabra 'legal'/'permit' junto a
+    // hora/jornada/semana señala una pregunta de NORMATIVA (intent `ley`), no
+    // de las horas que YA trabajó el usuario. Sin esto, la señal 'hora' hacía
+    // ganar a `horas_trabajadas` y respondía "llevás 39h este mes" (GAP D1).
+    var _esJornadaLegal =
+      (_raw.indexOf('legal') >= 0 || _raw.indexOf('permit') >= 0) &&
+      (_raw.indexOf('hora') >= 0 || _raw.indexOf('jornada') >= 0 || _raw.indexOf('semana') >= 0);
     var _pideHoras =
+      !_esJornadaLegal &&
       (_raw.indexOf('hora') >= 0 || _raw.indexOf('tiempo') >= 0) &&
       _raw.indexOf('dominical') < 0 &&
       _raw.indexOf('nocturn') < 0 &&
@@ -2037,6 +2063,13 @@ function aiClassify(text, convState, userContext) {
         _raw.indexOf('recargo') >= 0)
     ) {
       score += 7;
+    }
+
+    // Consulta del marco legal de la jornada → intent `ley` (GAP D1). Supera el
+    // bonus de horas trabajadas para que "cuántas horas son legales por semana"
+    // responda la normativa (Ley 2101), no las horas acumuladas del usuario.
+    if ((intent.id === 'ley' || intent.id === 'laboral') && _esJornadaLegal) {
+      score += 9;
     }
 
     // ── BONUS POR VERBO EXPLÍCITO DE SIMULACIÓN ──
