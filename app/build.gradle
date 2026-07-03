@@ -1,0 +1,21 @@
+apply plugin: 'com.android.application'
+
+android {
+    namespace 'one.miturno.twa'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'one.miturno.twa'
+        minSdk 23
+        targetSdk 36
+        versionCode 368
+        versionName '1.0.368'
+    }
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.6.2'
+    // Geovalla del trabajo (v368)
+    implementation 'com.google.android.gms:play-services-location:21.3.0'
+    implementation 'androidx.core:core:1.13.1'
+}

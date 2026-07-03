@@ -1,0 +1,10 @@
+<resources>
+    <style name="Theme.LauncherActivity" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:colorAccent">@color/color_accent</item>
+        <item name="android:navigationBarColor">@color/navigation_bar_color</item>
+        <item name="android:statusBarColor">@color/status_bar_color</item>
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+</resources>

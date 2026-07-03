@@ -2,7 +2,7 @@
 //  MI TURNO · SERVICE WORKER
 //  Split cache: SHELL_CACHE (archivos de la app, se invalida en cada release)
 //               CDN_CACHE   (librerías externas, sobrevive entre releases)
-const SHELL_CACHE = 'mt-shell-v367'; // bump con scripts/bump.sh
+const SHELL_CACHE = 'mt-shell-v368'; // bump con scripts/bump.sh
 const CDN_CACHE = 'mt-cdn-v2'; // solo bump cuando cambien URLs de CDN
 
 // Supabase SDK y Chart.js son self-hosted → van en appResources (SHELL_CACHE).
@@ -82,7 +82,7 @@ const appResources = [
   './css/modals/delete-account.css',
   './css/modals/dark-overrides.css',
   './css/animations/keyframes.css',
-  // JS (39 archivos)
+  // JS (40 archivos)
   './js/config.js',
   './js/theme-boot.js',
   './js/config/react-init.js',
@@ -121,6 +121,7 @@ const appResources = [
   './js/services/ai-engage.js',
   './js/services/ai-calendar.js',
   './js/services/push-notifications.js',
+  './js/services/geofence.js',
   './js/services/export-files.js',
   './js/services/export-email.js',
   './js/services/ai-help.js',
@@ -316,6 +317,9 @@ self.addEventListener('fetch', function (e) {
           return r;
         })
         .catch(function () {
+          // Navegaciones con query (ej. /app?geo=enter desde la notificación
+          // de geovalla nativa) no matchean el cache exacto: servir el shell.
+          if (e.request.mode === 'navigate') return caches.match('./app.html');
           return cached;
         });
     })

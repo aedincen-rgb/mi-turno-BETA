@@ -5,8 +5,8 @@
 #
 #  REQUISITOS:
 #    - Java 17+ (ya disponible en tu sistema: openjdk 17.0.19)
-#    - Android SDK en $ANDROID_HOME (ya configurado: ~/.bubblewrap/android_sdk)
-#    - twa/android.keystore (regenerado en v163, password: miturno2026)
+#    - Android SDK en $ANDROID_HOME o ~/.bubblewrap/android_sdk
+#    - twa/android.keystore (se genera si no existe)
 #
 #  RESULTADO:
 #    - app/build/outputs/bundle/release/app-release.aab  ← SUBIR A PLAY STORE
@@ -20,10 +20,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-KEYSTORE="$ROOT/twa/android.keystore"
-KEY_ALIAS="miturno"
-KEY_PASS="miturno2026"
-STORE_PASS="miturno2026"
+KEYSTORE="${TWA_KEYSTORE:-$ROOT/twa/android.keystore}"
+KEY_ALIAS="${TWA_KEY_ALIAS:-miturno}"
+KEY_PASS="${TWA_KEY_PASS:-miturno2026}"
+STORE_PASS="${TWA_STORE_PASS:-$KEY_PASS}"
 
 # ─── Validaciones previas ──────────────────────────────────────
 echo ""
@@ -32,14 +32,16 @@ echo "║   Mi Turno · Build TWA (Android App Bundle)                  ║"
 echo "╚═══════════════════════════════════════════════════════════════╝"
 echo ""
 
+mkdir -p "$(dirname "$KEYSTORE")"
+
 if [ ! -f "$KEYSTORE" ]; then
-  echo "✗ ERROR: No encuentro twa/android.keystore"
-  echo "  Regeneralo con:"
-  echo "    keytool -genkeypair -keystore twa/android.keystore \\"
-  echo "      -alias miturno -keyalg RSA -keysize 2048 -validity 25000 \\"
-  echo "      -storepass miturno2026 -keypass miturno2026 \\"
-  echo "      -dname 'CN=Mi Turno, OU=Apps, O=Mi Turno, L=Bogota, C=CO'"
-  exit 1
+  echo "→ No existe keystore. Generando $KEYSTORE..."
+  keytool -genkeypair -keystore "$KEYSTORE" \
+    -alias "$KEY_ALIAS" -keyalg RSA -keysize 2048 -validity 25000 \
+    -storepass "$STORE_PASS" -keypass "$KEY_PASS" \
+    -dname 'CN=Mi Turno, OU=Apps, O=Mi Turno, L=Bogota, C=CO' >/dev/null
+  echo "  ✓ Keystore generado"
+  echo ""
 fi
 
 if [ -z "${ANDROID_HOME:-}" ] && [ -z "${ANDROID_SDK_ROOT:-}" ]; then
@@ -53,9 +55,20 @@ if ! command -v java >/dev/null 2>&1; then
   exit 1
 fi
 
-if [ ! -x "./gradlew" ]; then
-  echo "✗ ERROR: ./gradlew no existe o no es ejecutable"
+if [ -x "./gradlew" ]; then
+  GRADLE_CMD=("./gradlew")
+elif command -v gradle >/dev/null 2>&1; then
+  GRADLE_CMD=("gradle")
+elif [ -x "$HOME/.gradle/wrapper/dists/gradle-8.11.1-bin/bpt9gzteqjrbo1mjrsomdt32c/gradle-8.11.1/bin/gradle" ]; then
+  GRADLE_CMD=("$HOME/.gradle/wrapper/dists/gradle-8.11.1-bin/bpt9gzteqjrbo1mjrsomdt32c/gradle-8.11.1/bin/gradle")
+else
+  echo "✗ ERROR: No encuentro Gradle ni ./gradlew"
   exit 1
+fi
+
+GRADLE_FLAGS=("--no-daemon")
+if [ "${TWA_GRADLE_OFFLINE:-0}" = "1" ]; then
+  GRADLE_FLAGS+=("--offline")
 fi
 
 # ─── Verificar keystore ────────────────────────────────────────
@@ -89,17 +102,17 @@ echo ""
 
 # ─── Limpiar builds previos ────────────────────────────────────
 echo "→ Limpiando builds previos..."
-./gradlew clean --quiet 2>&1 | tail -3 || true
+"${GRADLE_CMD[@]}" clean --quiet "${GRADLE_FLAGS[@]}" 2>&1 | tail -3 || true
 echo ""
 
-# ─── Compilar AAB release ──────────────────────────────────────
-echo "→ Compilando app-release.aab (puede tardar 2-5 min la primera vez)..."
-./gradlew :app:bundleRelease \
+# ─── Compilar AAB/APK release ──────────────────────────────────
+echo "→ Compilando app-release.aab y app-release.apk (puede tardar 2-5 min la primera vez)..."
+"${GRADLE_CMD[@]}" :app:bundleRelease :app:assembleRelease \
   -Pandroid.injected.signing.store.file="$KEYSTORE" \
   -Pandroid.injected.signing.store.password="$STORE_PASS" \
   -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
   -Pandroid.injected.signing.key.password="$KEY_PASS" \
-  --no-daemon 2>&1 | tail -20
+  "${GRADLE_FLAGS[@]}" 2>&1 | tail -30
 
 # ─── Verificar resultado ───────────────────────────────────────
 AAB="app/build/outputs/bundle/release/app-release.aab"
@@ -112,17 +125,22 @@ if [ -f "$AAB" ]; then
   echo "║  ✓ BUILD EXITOSO                                            ║"
   echo "╠═══════════════════════════════════════════════════════════════╣"
   echo "║  AAB:  $AAB ($AAB_SIZE)"
-  [ -f "$APK" ] && echo "║  APK:  $APK ($(du -h "$APK" | awk '{print $1}'))"
+  if [ -f "$APK" ]; then
+    echo "║  APK:  $APK ($(du -h "$APK" | awk '{print $1}'))"
+  else
+    echo "║  APK:  no generado"
+  fi
   echo "╠═══════════════════════════════════════════════════════════════╣"
-  echo "║  PRÓXIMOS PASOS (cuando completes el pago de USD \$25):     ║"
+  echo "║  PRÓXIMOS PASOS:                                            ║"
   echo "║                                                              ║"
   echo "║  1. Ir a https://play.google.com/console                     ║"
   echo "║  2. Crear app: 'Mi Turno' (id: one.miturno.twa)            ║"
   echo "║  3. Testing → Internal testing → Create release             ║"
   echo "║  4. Subir: $AAB"
-  echo "║  5. Revisar y enviar a revisión (~24-48h)                   ║"
+  echo "║  5. Para Xiaomi GetApps, subir el APK en Mi Developer       ║"
+  echo "║  6. Revisar y enviar a revisión según cada tienda           ║"
   echo "║                                                              ║"
-  echo "║  Ver PLAY_STORE.md para guía paso a paso completa.           ║"
+  echo "║  Ver ANDROID_DISTRIBUTION.md para la guía corta.             ║"
   echo "╚═══════════════════════════════════════════════════════════════╝"
 else
   echo "║  ✗ BUILD FALLÓ                                               ║"

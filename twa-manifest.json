@@ -1,0 +1,16 @@
+{
+  "packageId": "one.miturno.twa",
+  "host": "miturno.one",
+  "name": "Mi Turno",
+  "launcherName": "Mi Turno",
+  "display": "standalone",
+  "orientation": "portrait",
+  "startUrl": "/app",
+  "themeColor": "#5B86E5",
+  "backgroundColor": "#F5F7FB",
+  "navigationColor": "#F5F7FB",
+  "signingKey": {
+    "path": "twa/android.keystore",
+    "alias": "miturno"
+  }
+}

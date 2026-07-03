@@ -249,6 +249,22 @@ const projectGlobals = {
   notifEnviar: 'readonly',
   notifOnVisible: 'readonly',
 
+  // services/geofence.js (v368)
+  GEO_DEFAULTS: 'readonly',
+  geoConfig: 'readonly',
+  geoPatch: 'readonly',
+  geoDist: 'readonly',
+  geoEval: 'readonly',
+  geoHora: 'readonly',
+  geoIsTwa: 'readonly',
+  geoSyncNative: 'readonly',
+  geoConsumeDeepLink: 'readonly',
+  geoInit: 'readonly',
+  geoStop: 'readonly',
+  geoCheckNow: 'readonly',
+  geoStartWatch: 'readonly',
+  geoStopWatch: 'readonly',
+
   // services/ai-help.js (v107)
   aiHelpAnswer: 'readonly',
   aiHelpListAll: 'readonly',

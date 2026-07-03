@@ -60,7 +60,10 @@ var FILES = [
   // ai-psychology.js no toca DOM ni deps de carga; seguro en node.
   'js/services/ai-psychology.js',
   // ai-conversation.js es autocontenido en carga (motor de continuidad v334).
-  'js/services/ai-conversation.js'
+  'js/services/ai-conversation.js',
+  // geofence.js: funciones puras (haversine, histéresis) + runtime guardeado
+  // con typeof navigator/window — seguro en node.
+  'js/services/geofence.js'
 ];
 
 // ── Stubs del entorno ────────────────────────────────────────────
@@ -540,6 +543,43 @@ group('Modo quincena por defecto (v365): reencuadre solo en escenarios necesario
          'texto con "quincena" lo maneja el path explícito, no el default');
   truthy(w._aiScopeQuincenaAuto(cOff, stateQ, 'cuanto llevo') === null,
          'modo OFF nunca reencuadra (comportamiento mensual intacto)');
+})();
+
+group('Geovalla del trabajo (v368): haversine + histéresis + config');
+(function () {
+  // Distancias: a sí mismo = 0; 0.009° de latitud ≈ 1.000 m
+  truthy(Math.abs(w.geoDist(4.6, -74.08, 4.6, -74.08)) < 0.001, 'distancia a sí mismo = 0');
+  var d1 = w.geoDist(4.60971, -74.08175, 4.61871, -74.08175);
+  truthy(d1 > 950 && d1 < 1050, '0.009° de latitud ≈ 1 km (' + Math.round(d1) + ' m)');
+
+  // Histéresis: entra con radius (150), sale con radius*1.5+40 (265)
+  var cfg = { lat: 4.6, lng: -74.08, radius: 150, inside: null };
+  var rIn = w.geoEval(cfg, 4.6, -74.08);
+  truthy(rIn.inside === true && rIn.transition === 'enter', 'dentro del radio → enter');
+
+  cfg.inside = true;
+  var rStay = w.geoEval(cfg, 4.6015, -74.08); // ~167 m: pasó el radio de entrada pero NO el de salida
+  truthy(rStay.inside === true && rStay.transition === null,
+         'banda muerta anti-flapping: a ~167 m sigue adentro');
+  var rOut = w.geoEval(cfg, 4.603, -74.08); // ~334 m ≥ 265 → exit
+  truthy(rOut.inside === false && rOut.transition === 'exit', 'cruza el radio de salida → exit');
+
+  cfg.inside = false;
+  var rFar = w.geoEval(cfg, 4.61, -74.08);
+  truthy(rFar.inside === false && rFar.transition === null, 'lejos y ya afuera → sin transición');
+
+  // Sin ubicación configurada no decide nada
+  var rNull = w.geoEval({ lat: null, lng: null, radius: 150, inside: null }, 4.6, -74.08);
+  truthy(rNull.inside === null && rNull.transition === null, 'sin lugar marcado → no evalúa');
+
+  // Config: defaults sanos + persistencia del patch
+  var gc = w.geoConfig('u-geo');
+  truthy(gc.on === false && gc.radius === 150 && gc.modo === 'ask',
+         'defaults: apagado, 150 m, modo preguntar');
+  w.geoPatch('u-geo', { on: true, lat: 4.6, lng: -74.08, arrivedAt: 123 });
+  var gc2 = w.geoConfig('u-geo');
+  truthy(gc2.on === true && gc2.lat === 4.6 && gc2.arrivedAt === 123,
+         'geoPatch persiste en mt_geo_<uid> (incluida la marca de llegada)');
 })();
 
 group('ai-query: comparación de períodos (v287)');

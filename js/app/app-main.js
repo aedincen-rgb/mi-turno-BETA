@@ -52,6 +52,10 @@ function App(props) {
   var s7 = useState(false);
   var showOlv = s7[0],
     setShowOlv = s7[1];
+  // Prompt de geovalla: llegada/salida del trabajo detectada (modo "preguntar")
+  var sg = useState(null);
+  var geoPrompt = sg[0],
+    setGeoPrompt = sg[1];
   var s9 = useState(true);
   var loading = s9[0],
     setLoading = s9[1];
@@ -821,6 +825,8 @@ function App(props) {
   activoRef.current = activo;
   var showOlvRef = useRef(showOlv);
   showOlvRef.current = showOlv;
+  var salarioOkRef = useRef(salarioConfigured);
+  salarioOkRef.current = salarioConfigured;
   // Ref para recordar qué turno ya fue notificado, así si el usuario
   // descarta con "Sigue activo" no se vuelve a mostrar el modal para el mismo turno
   var notificadoRef = useRef(null);
@@ -914,6 +920,37 @@ function App(props) {
       window.__mtTurnoActivo = !!activo;
     },
     [activo]
+  );
+
+  // ── Geovalla del trabajo: arranca cuando los datos ya cargaron ──
+  // Espera a loading=false para que tieneActivo() vea el turno real (si el
+  // deep link nativo llega antes de cargar, se duplicaría el inicio).
+  // Las funciones del bridge solo usan refs y setters estables: sin staleness.
+  useEffect(
+    function () {
+      if (loading || !uid || typeof geoInit !== 'function') return;
+      geoInit(uid, {
+        tieneActivo: function () {
+          return !!activoRef.current;
+        },
+        salarioOk: function () {
+          return !!salarioOkRef.current;
+        },
+        iniciarDesde: geoIniciarDesde,
+        cerrarEn: geoCerrarEn,
+        prompt: function (p) {
+          setGeoPrompt(p);
+          // Si la app está en background, además notificar (el prompt espera).
+          if (document.visibilityState !== 'visible' && typeof notifEnviar === 'function') {
+            notifEnviar(p.title, p.body, 'mt-geo');
+          }
+        }
+      });
+      return function () {
+        if (typeof geoStop === 'function') geoStop();
+      };
+    },
+    [loading, uid]
   );
 
   // ── Iniciar/detener rotación Mood Bar según pestaña ──
@@ -1079,6 +1116,35 @@ function App(props) {
     queueAction(uid, 'setActivo', null);
   }
 
+  // ── Geovalla: iniciar/cerrar con la hora REAL del evento (backdate) ──
+  // Mismo contrato de sync que onIni/onOlv, pero el ISO viene de la detección
+  // (llegada/salida al trabajo), no del momento del tap. Usa refs para no
+  // arrastrar estado viejo: el motor las invoca desde fuera del render.
+  function geoIniciarDesde(iso) {
+    if (activoRef.current) return;
+    insertTurno(uid, iso).then(function (row) {
+      var nuevo = { id: row.id, inicio: row.inicio, userId: uid };
+      setActivo(nuevo);
+      queueAction(uid, 'setActivo', nuevo);
+      showToast('📍 Turno iniciado desde las ' + geoHora(new Date(iso).getTime()), 'success');
+    });
+  }
+  function geoCerrarEn(finISO) {
+    var act = activoRef.current;
+    if (!act) return;
+    var durSeg = (new Date(finISO) - new Date(act.inicio)) / 1000;
+    if (durSeg < 60) return; // mismo guard anti doble-toque que onFin
+    var turnoCerrado = { id: act.id, inicio: act.inicio, fin: finISO, userId: uid };
+    setTurnos(function (p) {
+      return [turnoCerrado].concat(p);
+    });
+    setActivo(null);
+    setShowOlv(false);
+    queueAction(uid, 'insertTurno', turnoCerrado);
+    queueAction(uid, 'setActivo', null);
+    showToast('📍 Turno cerrado a las ' + geoHora(new Date(finISO).getTime()), 'success');
+  }
+
   function onSalario(v) {
     haptic();
     setSalario(v);
@@ -1214,6 +1280,77 @@ function App(props) {
             setShowOlv(false);
           }
         })
+      : null,
+    // Prompt de geovalla (modo "preguntar"): confirma inicio/cierre con la
+    // hora real de llegada/salida. Mismo patrón visual que ModalOlvidado.
+    geoPrompt
+      ? h(
+          'div',
+          {
+            className: 'mol-ov',
+            role: 'dialog',
+            'aria-modal': 'true',
+            'aria-label': geoPrompt.title
+          },
+          h(
+            'div',
+            { className: 'mol-sh' },
+            h('div', { className: 'mol-hdl' }),
+            h(
+              'div',
+              { style: { textAlign: 'center' } },
+              h(
+                'div',
+                { style: { fontSize: 38, marginBottom: 10, opacity: 0.85 }, 'aria-hidden': 'true' },
+                geoPrompt.kind === 'enter' ? '📍' : '🏠'
+              ),
+              h(
+                'div',
+                {
+                  style: {
+                    fontSize: 19,
+                    fontWeight: 800,
+                    letterSpacing: '-0.5px',
+                    color: 'var(--text)',
+                    marginBottom: 6
+                  }
+                },
+                geoPrompt.title
+              ),
+              h(
+                'div',
+                { style: { fontSize: 13, color: 'var(--muted)', fontWeight: 500 } },
+                geoPrompt.body
+              )
+            ),
+            h(
+              'button',
+              {
+                className: 'btn btn-accent btn-block',
+                style: { marginTop: 18, marginBottom: 8 },
+                onClick: function () {
+                  haptic();
+                  var p = geoPrompt;
+                  setGeoPrompt(null);
+                  if (p.kind === 'enter') geoIniciarDesde(p.iso);
+                  else geoCerrarEn(p.iso);
+                }
+              },
+              geoPrompt.actionLabel
+            ),
+            h(
+              'button',
+              {
+                className: 'btn btn-ghost btn-block',
+                onClick: function () {
+                  haptic();
+                  setGeoPrompt(null);
+                }
+              },
+              'Ahora no'
+            )
+          )
+        )
       : null,
     toast
       ? h(

@@ -25,21 +25,14 @@ playwright-report/
 playwright/.cache/
 dist/
 
-# Android / Bubblewrap / TWA (build artifacts — NO versionar)
+# Android / Bubblewrap / TWA (artefactos y secretos — NO versionar)
 app/build/
 app-release*.apk
 app-release*.aab
 app-release*.idsig
 android.keystore
 twa/android.keystore
-build.gradle
-settings.gradle
-gradle.properties
-gradle/
-gradlew
-gradlew.bat
 store_icon.png
-twa-manifest.json
 manifest-checksum.txt
 build/
 .gradle/

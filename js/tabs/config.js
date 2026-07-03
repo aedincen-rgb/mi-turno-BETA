@@ -338,6 +338,18 @@ function ConfigTabInner(props) {
   var AUX_VAL = typeof AUX_TRANSPORTE_2026 !== 'undefined' ? AUX_TRANSPORTE_2026 : 249095;
   var PRES_PCT = typeof PRESTACIONES_PCT !== 'undefined' ? PRESTACIONES_PCT : 0.218;
 
+  // Geovalla del trabajo: espejo local de mt_geo_<uid> para re-render al tocar
+  var geoS = useState(function () {
+    return typeof geoConfig === 'function' && session && session.uid
+      ? geoConfig(session.uid)
+      : null;
+  });
+  var geoCfg = geoS[0],
+    setGeoCfg = geoS[1];
+  var geoMS = useState(false);
+  var geoMarcando = geoMS[0],
+    setGeoMarcando = geoMS[1];
+
   // Sincroniza el texto local con los días reales de las prefs cuando
   // cambian desde fuera (carga inicial, preset, etc.)
   useEffect(
@@ -878,6 +890,268 @@ function ConfigTabInner(props) {
         'Son valores estimados. Pueden variar según tu empleador y las deducciones legales.'
       )
     ),
+
+    // ══════ AUTOMATIZACIÓN POR UBICACIÓN (geovalla del trabajo) ══════
+    typeof geoConfig === 'function' && session && session.uid
+      ? (function () {
+          var uid = session.uid;
+          var cfg = geoCfg || geoConfig(uid);
+          function patchGeo(p) {
+            var nuevo = geoPatch(uid, p);
+            setGeoCfg(nuevo);
+            return nuevo;
+          }
+          return h(
+            'div',
+            { className: 'ajustes-section' },
+            h('div', { className: 'ajustes-section-ttl' }, 'Lugar de trabajo'),
+            h(
+              'div',
+              { className: 'ajustes-list' },
+
+              // Toggle maestro
+              h(
+                'div',
+                { className: 'ajustes-row' },
+                h('div', { className: 'ajustes-row-ico' }, '📍'),
+                h(
+                  'div',
+                  { className: 'ajustes-row-mid' },
+                  h('div', { className: 'ajustes-row-ttl' }, 'Detectar mi trabajo'),
+                  h(
+                    'div',
+                    { className: 'ajustes-row-sub' },
+                    cfg.lat != null
+                      ? typeof geoIsTwa === 'function' && geoIsTwa()
+                        ? 'Ubicación marcada · detección en segundo plano (Android)'
+                        : 'Ubicación marcada · detecta al abrir o usar la app'
+                      : 'Primero marcá tu ubicación de trabajo abajo'
+                  )
+                ),
+                h(
+                  'label',
+                  { className: 'ajustes-switch' },
+                  h('input', {
+                    type: 'checkbox',
+                    role: 'switch',
+                    'aria-checked': !!cfg.on,
+                    'aria-label':
+                      'Detección del lugar de trabajo, ' + (cfg.on ? 'activada' : 'desactivada'),
+                    checked: !!cfg.on,
+                    disabled: cfg.lat == null,
+                    onChange: function () {
+                      haptic();
+                      var nuevo = patchGeo({ on: !cfg.on, inside: null });
+                      // Gesto del usuario: momento válido para lanzar el intent
+                      // nativo (Android) y pedir permiso de notificaciones.
+                      if (typeof geoSyncNative === 'function') geoSyncNative(nuevo);
+                      if (nuevo.on) {
+                        if (typeof notifPedir === 'function') notifPedir();
+                        if (typeof geoStartWatch === 'function') geoStartWatch();
+                        if (typeof geoCheckNow === 'function') geoCheckNow();
+                        showToast && showToast('Detección activada 📍', 'success');
+                      } else {
+                        if (typeof geoStopWatch === 'function') geoStopWatch();
+                        showToast && showToast('Detección desactivada', 'warning');
+                      }
+                    }
+                  }),
+                  h('span', { className: 'ajustes-switch-track' })
+                )
+              ),
+
+              // Marcar ubicación actual como lugar de trabajo
+              h(
+                'div',
+                {
+                  className: 'ajustes-row',
+                  role: 'button',
+                  tabIndex: 0,
+                  'aria-label': 'Marcar mi ubicación actual como lugar de trabajo',
+                  style: { cursor: 'pointer' },
+                  onClick: function () {
+                    haptic();
+                    if (typeof navigator === 'undefined' || !navigator.geolocation || geoMarcando) {
+                      if (!navigator.geolocation)
+                        showToast && showToast('Tu navegador no da acceso a ubicación', 'error');
+                      return;
+                    }
+                    setGeoMarcando(true);
+                    navigator.geolocation.getCurrentPosition(
+                      function (pos) {
+                        setGeoMarcando(false);
+                        patchGeo({
+                          lat: pos.coords.latitude,
+                          lng: pos.coords.longitude,
+                          inside: true
+                        });
+                        showToast &&
+                          showToast(
+                            'Trabajo marcado (±' + Math.round(pos.coords.accuracy) + ' m) ✓',
+                            'success'
+                          );
+                      },
+                      function () {
+                        setGeoMarcando(false);
+                        showToast &&
+                          showToast('No pude leer tu ubicación. Revisá el permiso.', 'error');
+                      },
+                      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+                    );
+                  }
+                },
+                h('div', { className: 'ajustes-row-ico' }, geoMarcando ? '⏳' : '🎯'),
+                h(
+                  'div',
+                  { className: 'ajustes-row-mid' },
+                  h(
+                    'div',
+                    { className: 'ajustes-row-ttl' },
+                    geoMarcando ? 'Leyendo ubicación…' : 'Marcar ubicación actual'
+                  ),
+                  h(
+                    'div',
+                    { className: 'ajustes-row-sub' },
+                    cfg.lat != null
+                      ? 'Guardada: ' + cfg.lat.toFixed(5) + ', ' + cfg.lng.toFixed(5)
+                      : 'Tocá estando EN tu trabajo para guardarla'
+                  )
+                )
+              ),
+
+              // Radio de la geovalla
+              h(
+                'div',
+                { className: 'ajustes-row' },
+                h('div', { className: 'ajustes-row-ico' }, '⭕'),
+                h(
+                  'div',
+                  { className: 'ajustes-row-mid' },
+                  h('div', { className: 'ajustes-row-ttl' }, 'Radio de detección'),
+                  h('div', { className: 'ajustes-row-sub' }, 'Qué tan cerca cuenta como "llegué"')
+                ),
+                h(
+                  'select',
+                  {
+                    className: 'ios-sel',
+                    'aria-label': 'Radio de detección en metros',
+                    value: String(cfg.radius),
+                    style: { width: '96px' },
+                    onChange: function (e) {
+                      haptic();
+                      var nuevo = patchGeo({ radius: parseInt(e.target.value, 10), inside: null });
+                      if (typeof geoSyncNative === 'function' && nuevo.on) geoSyncNative(nuevo);
+                    }
+                  },
+                  [100, 150, 200, 300, 500].map(function (m) {
+                    return h('option', { key: m, value: String(m) }, m + ' m');
+                  })
+                )
+              ),
+
+              // Modo: preguntar vs automático total
+              h(
+                'div',
+                { className: 'ajustes-row' },
+                h('div', { className: 'ajustes-row-ico' }, '🤖'),
+                h(
+                  'div',
+                  { className: 'ajustes-row-mid' },
+                  h('div', { className: 'ajustes-row-ttl' }, 'Modo automático total'),
+                  h(
+                    'div',
+                    { className: 'ajustes-row-sub' },
+                    cfg.modo === 'auto'
+                      ? 'Inicia y cierra solo, con la hora real de llegada/salida'
+                      : 'Te pregunta antes de iniciar o cerrar'
+                  )
+                ),
+                h(
+                  'label',
+                  { className: 'ajustes-switch' },
+                  h('input', {
+                    type: 'checkbox',
+                    role: 'switch',
+                    'aria-checked': cfg.modo === 'auto',
+                    'aria-label':
+                      'Modo automático total, ' +
+                      (cfg.modo === 'auto' ? 'activado' : 'desactivado'),
+                    checked: cfg.modo === 'auto',
+                    onChange: function () {
+                      haptic();
+                      patchGeo({ modo: cfg.modo === 'auto' ? 'ask' : 'auto' });
+                    }
+                  }),
+                  h('span', { className: 'ajustes-switch-track' })
+                )
+              ),
+
+              // Qué automatizar
+              h(
+                'div',
+                { className: 'ajustes-row' },
+                h('div', { className: 'ajustes-row-ico' }, '🟢'),
+                h(
+                  'div',
+                  { className: 'ajustes-row-mid' },
+                  h('div', { className: 'ajustes-row-ttl' }, 'Iniciar al llegar'),
+                  h('div', { className: 'ajustes-row-sub' }, 'Arranca el turno cuando llegás')
+                ),
+                h(
+                  'label',
+                  { className: 'ajustes-switch' },
+                  h('input', {
+                    type: 'checkbox',
+                    role: 'switch',
+                    'aria-checked': !!cfg.autoStart,
+                    'aria-label':
+                      'Iniciar al llegar, ' + (cfg.autoStart ? 'activado' : 'desactivado'),
+                    checked: !!cfg.autoStart,
+                    onChange: function () {
+                      haptic();
+                      patchGeo({ autoStart: !cfg.autoStart });
+                    }
+                  }),
+                  h('span', { className: 'ajustes-switch-track' })
+                )
+              ),
+              h(
+                'div',
+                { className: 'ajustes-row' },
+                h('div', { className: 'ajustes-row-ico' }, '🏠'),
+                h(
+                  'div',
+                  { className: 'ajustes-row-mid' },
+                  h('div', { className: 'ajustes-row-ttl' }, 'Cerrar al salir'),
+                  h('div', { className: 'ajustes-row-sub' }, 'Cierra el turno cuando te vas')
+                ),
+                h(
+                  'label',
+                  { className: 'ajustes-switch' },
+                  h('input', {
+                    type: 'checkbox',
+                    role: 'switch',
+                    'aria-checked': !!cfg.autoEnd,
+                    'aria-label': 'Cerrar al salir, ' + (cfg.autoEnd ? 'activado' : 'desactivado'),
+                    checked: !!cfg.autoEnd,
+                    onChange: function () {
+                      haptic();
+                      patchGeo({ autoEnd: !cfg.autoEnd });
+                    }
+                  }),
+                  h('span', { className: 'ajustes-switch-track' })
+                )
+              )
+            ),
+            h(
+              'p',
+              { className: 'ajustes-legal', style: { padding: '0 4px' } },
+              'Tu ubicación se procesa solo en tu dispositivo: nunca se sube a la nube. ' +
+                'Si llegás y abrís la app más tarde, el turno se inicia con la hora real de llegada.'
+            )
+          );
+        })()
+      : null,
 
     // ══════ RECORDATORIOS ══════
     h(
