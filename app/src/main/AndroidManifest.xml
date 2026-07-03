@@ -63,7 +63,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data
-                    android:host="miturno.one"
+                    android:host="www.miturno.one"
                     android:pathPrefix="/app"
                     android:scheme="https" />
             </intent-filter>
@@ -80,7 +80,7 @@
         </provider>
 
         <service
-            android:name="com.google.androidbrowserhelper.trusted.DelegationService"
+            android:name=".DelegationServiceImpl"
             android:enabled="true"
             android:exported="true">
             <intent-filter>

@@ -16,7 +16,7 @@ import com.google.android.gms.location.GeofencingEvent;
 /**
  * Recibe los eventos de la geovalla del sistema (aunque la app esté cerrada)
  * y postea una notificación cuyo tap abre el TWA con el deep link
- *   https://miturno.one/app?geo=enter|exit&at=<epoch>
+ *   https://www.miturno.one/app?geo=enter|exit&at=<epoch>
  * El epoch es la hora REAL del evento: la web inicia/cierra el turno con esa
  * hora (backdate), no con la hora del tap. Así, aunque el usuario toque la
  * notificación dos horas después, el turno queda bien.
@@ -44,7 +44,7 @@ public class GeofenceReceiver extends BroadcastReceiver {
                 ? "Tocá para iniciar el turno con tu hora de llegada."
                 : "Tocá para cerrar el turno con tu hora de salida.";
 
-        Uri link = Uri.parse("https://miturno.one/app?geo=" + kind + "&at=" + at);
+        Uri link = Uri.parse("https://www.miturno.one/app?geo=" + kind + "&at=" + at);
         Intent open = new Intent(Intent.ACTION_VIEW, link);
         open.setPackage(context.getPackageName()); // directo al TWA, sin chooser
         open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);

@@ -8,8 +8,8 @@ android {
         applicationId 'one.miturno.twa'
         minSdk 23
         targetSdk 36
-        versionCode 368
-        versionName '1.0.368'
+        versionCode 369
+        versionName '1.0.369'
     }
 }
 
@@ -17,5 +17,6 @@ dependencies {
     implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.6.2'
     // Geovalla del trabajo (v368)
     implementation 'com.google.android.gms:play-services-location:21.3.0'
+    implementation 'com.google.androidbrowserhelper:locationdelegation:1.0.1'
     implementation 'androidx.core:core:1.13.1'
 }
