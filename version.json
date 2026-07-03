@@ -1,4 +1,4 @@
 {
-  "v": "v369",
-  "label": "v369: fix TWA — host www (asset links verificados), delegación de ubicación, APK en release"
+  "v": "v370",
+  "label": "v370: Permissions-Policy — habilitar geolocation y microphone (self); estaban bloqueados en producción"
 }
